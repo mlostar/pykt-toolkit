@@ -38,11 +38,18 @@ def sta_infos(df, keys, stares, split_str="_"):
     stares.append(",".join([str(s) for s in curr]))
     return ins, us, qs, cs, avgins, avgcqf, naf
 
-def write_txt(file, data):
-    with open(file, "w") as f:
-        for dd in data:
-            for d in dd:
-                f.write(",".join(d) + "\n")
+def write_txt(file, data, chunks = False):
+    if chunks:
+        with open(file, "a") as f:
+            for dd in data:
+                for d in dd:
+                    f.write(",".join(d) + "\n")
+        f.close()
+    else:
+        with open(file, "w") as f:
+            for dd in data:
+                for d in dd:
+                    f.write(",".join(d) + "\n")
 
 from datetime import datetime
 def change2timestamp(t, hasf=True):

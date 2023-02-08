@@ -1,3 +1,6 @@
+#Scripts won't work without path modification since originally we need to install PyKT package
+import sys
+sys.path.append('/home/lostarious/grad/pykt-toolkit')
 import os, sys
 import torch
 import torch.nn as nn
@@ -8,6 +11,9 @@ from torch.autograd import Variable, grad
 from .atkt import _l2_normalize_adv
 from ..utils.utils import debug_print
 from pykt.config import que_type_models
+from .utils import NoamScheduler
+from tqdm import tqdm
+import matplotlib.pyplot as plt
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
@@ -55,9 +61,9 @@ def model_forward(model, data):
         dcur, dgaps = data
     else:
         dcur = data
-    q, c, r, t = dcur["qseqs"], dcur["cseqs"], dcur["rseqs"], dcur["tseqs"]
-    qshft, cshft, rshft, tshft = dcur["shft_qseqs"], dcur["shft_cseqs"], dcur["shft_rseqs"], dcur["shft_tseqs"]
-    m, sm = dcur["masks"], dcur["smasks"]
+    q, c, r, t = dcur["qseqs"].to(device), dcur["cseqs"].to(device), dcur["rseqs"].to(device), dcur["tseqs"].to(device)
+    qshft, cshft, rshft, tshft = dcur["shft_qseqs"].to(device), dcur["shft_cseqs"].to(device), dcur["shft_rseqs"].to(device), dcur["shft_tseqs"].to(device)
+    m, sm = dcur["masks"].to(device), dcur["smasks"].to(device)
 
     ys, preloss = [], []
     cq = torch.cat((q[:,0:1], qshft), dim=1)
@@ -132,27 +138,44 @@ def model_forward(model, data):
 def train_model(model, train_loader, valid_loader, num_epochs, opt, ckpt_path, test_loader=None, test_window_loader=None, save_model=False):
     max_auc, best_epoch = 0, -1
     train_step = 0
+    all_train_loss = []
     if model.model_name=='lpkt':
         scheduler = torch.optim.lr_scheduler.StepLR(opt, 10, gamma=0.5)
+    elif model.model_name =='saint':
+       # TODO: Make this use the params from config
+       scheduler = NoamScheduler(opt,lr_mul=0.001,d_model = 256, n_warmup_steps=4000)
     for i in range(1, num_epochs + 1):
         loss_mean = []
-        for data in train_loader:
-            train_step+=1
-            if model.model_name in que_type_models:
-                model.model.train()
-            else:
-                model.train()
-            loss = model_forward(model, data)
-            opt.zero_grad()
-            loss.backward()#compute gradients 
-            opt.step()#update model’s parameters
-                
-            loss_mean.append(loss.detach().cpu().numpy())
-            if model.model_name == "gkt" and train_step%10==0:
-                text = f"Total train step is {train_step}, the loss is {loss.item():.5}"
-                debug_print(text = text,fuc_name="train_model")
+        print("Steps in epoch: ", len(train_loader))
+        with tqdm(train_loader,unit="batch") as epoch:
+            epoch.set_description(f"Epoch {i}: ")
+            
+            for data in epoch:
+                train_step+=1
+                if model.model_name in que_type_models:
+                    model.model.train()
+                else:
+                    model.train()
+                loss = model_forward(model, data)
+                opt.zero_grad()
+                loss.backward()#compute gradients 
+                if model.model_name =='saint':
+                    scheduler.step_and_update_lr()
+                else:
+                    opt.step()#update model’s parameters
+                loss = loss.detach().cpu().numpy()
+                epoch.set_postfix(loss=loss.item())
+                loss_mean.append(loss)
+                all_train_loss.append(loss)
+                if model.model_name == "gkt" and train_step%10==0:
+                    text = f"Total train step is {train_step}, the loss is {loss.item():.5}"
+                    debug_print(text = text,fuc_name="train_model")
         if model.model_name=='lpkt':
             scheduler.step()#update each epoch
+        plot_range = list(range(0,train_step))
+        # Plot every train loss each 50 steps
+        plt.plot(plot_range[::50],all_train_loss[::50],'-b')
+        plt.savefig('training_loss.png')        
         loss_mean = np.mean(loss_mean)
         
         auc, acc = evaluate(model, valid_loader, model.model_name)

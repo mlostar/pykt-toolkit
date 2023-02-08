@@ -3,7 +3,9 @@ import argparse
 import json
 import copy
 import torch
-
+#Scripts won't work without path modification since originally we need to install PyKT package
+import sys
+sys.path.append('/home/lostarious/grad/pykt-toolkit')
 from pykt.models import evaluate,evaluate_question,load_model
 from pykt.datasets import init_test_datasets
 

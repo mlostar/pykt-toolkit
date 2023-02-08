@@ -560,15 +560,19 @@ def main(dname, fname, dataset_name, configf, min_seq_len = 3, maxlen = 200, kfo
             config.append(key)
     # train test split & generate sequences
     train_df, test_df = train_test_split(total_df, 0.2)
+    del total_df
     splitdf = KFold_split(train_df, kfold)
+    del train_df
     # TODO
     splitdf[config].to_csv(os.path.join(dname, "train_valid.csv"), index=None)
     ins, ss, qs, cs, seqnum = calStatistics(splitdf, stares, "original train+valid")
     print(f"train+valid original interactions num: {ins}, select num: {ss}, qs: {qs}, cs: {cs}, seqnum: {seqnum}")
     split_seqs = generate_sequences(splitdf, effective_keys, min_seq_len, maxlen)
+    del splitdf
     ins, ss, qs, cs, seqnum = calStatistics(split_seqs, stares, "train+valid sequences")
     print(f"train+valid sequences interactions num: {ins}, select num: {ss}, qs: {qs}, cs: {cs}, seqnum: {seqnum}")
     split_seqs.to_csv(os.path.join(dname, "train_valid_sequences.csv"), index=None)
+    del split_seqs
     # print(f"split seqs dtypes: {split_seqs.dtypes}")
 
     # add default fold -1 to test!
@@ -580,29 +584,34 @@ def main(dname, fname, dataset_name, configf, min_seq_len = 3, maxlen = 200, kfo
     ins, ss, qs, cs, seqnum = calStatistics(test_seqs, stares, "test sequences")
     print(f"test sequences interactions num: {ins}, select num: {ss}, qs: {qs}, cs: {cs}, seqnum: {seqnum}")
     print("="*20)
+    test_seqs.to_csv(os.path.join(dname, "test_sequences.csv"), index=None)
+    del test_seqs
 
     test_window_seqs = generate_window_sequences(test_df, list(effective_keys) + ['cidxs'], maxlen)
-    flag, test_question_seqs = generate_question_sequences(test_df, effective_keys, False, min_seq_len, maxlen)
-    flag, test_question_window_seqs = generate_question_sequences(test_df, effective_keys, True, min_seq_len, maxlen)
+    test_window_seqs.to_csv(os.path.join(dname, "test_window_sequences.csv"), index=None)
+    ins, ss, qs, cs, seqnum = calStatistics(test_window_seqs, stares, "test window")
+    print(f"test window interactions num: {ins}, select num: {ss}, qs: {qs}, cs: {cs}, seqnum: {seqnum}")
+    del test_window_seqs
     
+    flag, test_question_window_seqs = generate_question_sequences(test_df, effective_keys, True, min_seq_len, maxlen)
+    if flag:
+        test_question_window_seqs.to_csv(os.path.join(dname, "test_question_window_sequences.csv"), index=None)     
+        ins, ss, qs, cs, seqnum = calStatistics(test_question_window_seqs, stares, "test question window")
+        del test_question_window_seqs
+        print(f"test question window interactions num: {ins}, select num: {ss}, qs: {qs}, cs: {cs}, seqnum: {seqnum}")
+   
+        _, test_question_seqs = generate_question_sequences(test_df, effective_keys, False, min_seq_len, maxlen)    
+        test_question_seqs.to_csv(os.path.join(dname, "test_question_sequences.csv"), index=None)
+        ins, ss, qs, cs, seqnum = calStatistics(test_question_seqs, stares, "test question")
+        del test_question_seqs
+        print(f"test question interactions num: {ins}, select num: {ss}, qs: {qs}, cs: {cs}, seqnum: {seqnum}")
+        
     test_df = test_df[config+['cidxs']]
 
     test_df.to_csv(os.path.join(dname, "test.csv"), index=None)
-    test_seqs.to_csv(os.path.join(dname, "test_sequences.csv"), index=None)
-    test_window_seqs.to_csv(os.path.join(dname, "test_window_sequences.csv"), index=None)
-
-    ins, ss, qs, cs, seqnum = calStatistics(test_window_seqs, stares, "test window")
-    print(f"test window interactions num: {ins}, select num: {ss}, qs: {qs}, cs: {cs}, seqnum: {seqnum}")
+    del test_df
     
-    if flag:
-        test_question_seqs.to_csv(os.path.join(dname, "test_question_sequences.csv"), index=None)
-        test_question_window_seqs.to_csv(os.path.join(dname, "test_question_window_sequences.csv"), index=None)
-        
-        ins, ss, qs, cs, seqnum = calStatistics(test_question_seqs, stares, "test question")
-        print(f"test question interactions num: {ins}, select num: {ss}, qs: {qs}, cs: {cs}, seqnum: {seqnum}")
-        ins, ss, qs, cs, seqnum = calStatistics(test_question_window_seqs, stares, "test question window")
-        print(f"test question window interactions num: {ins}, select num: {ss}, qs: {qs}, cs: {cs}, seqnum: {seqnum}")
-   
+    
     write_config(dataset_name=dataset_name, dkeyid2idx=dkeyid2idx, effective_keys=effective_keys, 
                 configf=configf, dpath = dname, k=kfold,min_seq_len = min_seq_len, maxlen=maxlen,flag=flag)
     

@@ -1,3 +1,6 @@
+#Scripts won't work without path modification since originally we need to install PyKT package
+import sys
+sys.path.append('/home/lostarious/grad/pykt-toolkit')
 import os
 import argparse
 import json

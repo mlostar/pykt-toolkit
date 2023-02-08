@@ -1,4 +1,7 @@
-import os, sys
+import os
+#Scripts won't work without path modification since originally we need to install PyKT package
+import sys
+sys.path.append('/home/lostarious/grad/pykt-toolkit')
 import argparse
 from pykt.preprocess.split_datasets import main as split_concept
 from pykt.preprocess.split_datasets_que import main as split_question
@@ -47,5 +50,6 @@ if __name__ == "__main__":
     print("="*100)
 
     #for question level model
-    split_question(dname, writef, args.dataset_name, configf, args.min_seq_len,args.maxlen, args.kfold)
+    # Concept level is same as question level for ednet with part as concepts. Commenting this avoids unnecessary work
+    #split_question(dname, writef, args.dataset_name, configf, args.min_seq_len,args.maxlen, args.kfold)
 

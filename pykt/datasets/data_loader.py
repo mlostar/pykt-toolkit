@@ -7,10 +7,13 @@ import torch
 from torch.utils.data import Dataset
 import numpy as np
 
-if torch.cuda.is_available():
-    from torch.cuda import FloatTensor, LongTensor
-else:
-    from torch import FloatTensor, LongTensor
+# This tries to load the entire data into CUDA which is not possible when using the entire EdNet
+# Load them into cuda in batches during forward prop. instead
+
+# if torch.cuda.is_available():
+#     from torch.cuda import FloatTensor, LongTensor
+# else:
+from torch import FloatTensor, LongTensor
 
 class KTDataset(Dataset):
     """Dataset for KT
